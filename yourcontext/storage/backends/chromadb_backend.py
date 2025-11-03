@@ -120,6 +120,7 @@ class ChromaDBBackend(IStorageBackend):
         ids = data.get("ids", None)
         n_results = data.get("n_results", 10)
         where = data.get("where", None)
+        include = data.get("include", ["documents", "metadatas", "distances"])
 
         if query_embeddings or query_texts:
             results = collection.query(
@@ -128,6 +129,7 @@ class ChromaDBBackend(IStorageBackend):
                 ids=ids,
                 n_results=n_results,
                 where=where,
+                include=include,
             )
         elif ids:
             results = collection.get(
@@ -159,7 +161,7 @@ class ChromaDBBackend(IStorageBackend):
             return False
         
         try:
-            chroma_results = collection.get(ids=ids)
+            chroma_results = collection.get(ids=ids, include=["documents", "metadatas", "embeddings"])
             logger.debug(f"query results: {chroma_results}")
             # 先将数据移动到回收站
             if chroma_results and recycle:
@@ -210,8 +212,8 @@ class ChromaDBBackend(IStorageBackend):
         ids = data.get("ids", [])
         documents = data.get("documents", [])
         metadatas = data.get("metadatas", [])
-        embeddings = data.get("embeddings", [])
-        if not ids or not documents or not metadatas or not embeddings:
+        embeddings = data.get("embeddings", None)
+        if not ids or not documents or not metadatas or embeddings is None:
             logger.error("ids, documents, metadatas, embeddings are required for insert")
             return False
         

@@ -58,16 +58,19 @@ class TestChromaDBBackend:
         results = backend.query(data)
         logging.debug(f"backend.query() returns: {results}")
         
-        assert results == {
+        base_data = {
             'ids': [['id1']], 
             'embeddings': None, 
-            'documents': [['doc1']], 
+            'documents': [['doc1']],
             'uris': None, 
-            'included': ['metadatas', 'documents', 'distances'], 
+            "included": ["documents", "metadatas", "distances"],
             'data': None, 
             'metadatas': [[{'source': 'src1'}]], 
             'distances': [[0.0]]
         }
+        logging.debug(f"base_data is: {base_data}")
+
+        assert results == base_data
         logging.debug(f"queried data is: {results}")
 
     @pytest.mark.run(order=6)
