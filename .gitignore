@@ -9,6 +9,7 @@ build/
 /test_storage
 /test_script
 .DS_Store
+.langgraph_api/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
