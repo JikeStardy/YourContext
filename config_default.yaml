@@ -1,0 +1,21 @@
+YourContext:
+  api:
+    port: 8000
+  model:
+  - qwen3-max
+  - qwen3-omni-flash
+  storage:
+    chromadb:
+      enable: false
+    file:
+      enable: true
+      max_file_count: 1000
+      max_file_size: 1000000000
+      path: ./storage
+  tool:
+    aliyun_bailian:
+      api_key: aliyun_bailian_aksk
+    bilibili:
+      sessdata: bilibili_sessdata
+    tavily:
+      api_key: tavily_api_key
