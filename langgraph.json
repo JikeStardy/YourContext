@@ -1,0 +1,11 @@
+{
+    "$schema": "https://langgra.ph/schema.json",
+    "dependencies": [
+        "."
+    ],
+    "graphs": {
+        "video_agent": "./yourcontext/agents/video_agent.py:get_video_agent",
+        "chat_agent": "./yourcontext/agents/chat_agent.py:get_chat_agent"
+    },
+    "env": "./.env"
+}
