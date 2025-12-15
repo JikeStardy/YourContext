@@ -14,8 +14,10 @@ YourContext:
       path: ./storage
   tool:
     aliyun_bailian:
+      base_url: aliyun_base_url
       api_key: aliyun_bailian_aksk
     bilibili:
       sessdata: bilibili_sessdata
     tavily:
+      base_url: tavily_url
       api_key: tavily_api_key

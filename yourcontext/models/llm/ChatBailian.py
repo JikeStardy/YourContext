@@ -1,5 +1,7 @@
 from langchain_openai import ChatOpenAI
 
+from yourcontext.config import ConfigManager
+
 
 class ChatBailian(ChatOpenAI):
     """
@@ -9,4 +11,8 @@ class ChatBailian(ChatOpenAI):
         """
         Initialize the ChatBailian model with the given keyword arguments.
         """
-        super().__init__(base_url=config.get("bailian_base_url"), api_key=config.get("bailian_api_key"), **kwargs)
+        super().__init__(
+            base_url=ConfigManager.get("YourContext.tool.aliyun_bailian.base_url"), 
+            api_key=ConfigManager.get("YourContext.tool.aliyun_bailian.api_key"), 
+            **kwargs
+        )
