@@ -3,33 +3,26 @@ from datetime import timedelta
 import logging
 import os
 from typing import Optional
-import alibabacloud_oss_v2 as oss, models
+import alibabacloud_oss_v2 as oss
+from yourcontext.config.config_manager import ConfigManager
 
 
 class AliyunOSS:
-    def __init__(self, endpoint, region, access_key_id, access_key_secret, bucket_name):
-        self._endpoint = endpoint
-        self._credentials = oss.credentials.StaticCredentialsProvider(
-            access_key_id=access_key_id,
-            access_key_secret=access_key_secret,
-        )
-        self._bucket_name = bucket_name
+    def __init__(self, endpoint=None, region=None, access_key_id=None, access_key_secret=None, bucket_name=None):
+        self._bucket_name = bucket_name or ConfigManager.singleton().get("YourContext.tool.aliyun_oss.bucket_name")
         # 加载SDK的默认配置，并设置凭证提供者
         self._cfg = oss.config.load_default()
-        self._cfg.credentials_provider = self._credentials
-
-        # 设置配置中的区域信息
-        self._cfg.region = region
-
-        # 如果提供了endpoint参数，则设置配置中的endpoint
-        if self._endpoint is not None:
-            self._cfg.endpoint = self._endpoint
-
+        self._cfg.credentials_provider = oss.credentials.StaticCredentialsProvider(
+            access_key_id=access_key_id or ConfigManager.singleton().get("YourContext.tool.aliyun_oss.access_key_id"),
+            access_key_secret=access_key_secret or ConfigManager.singleton().get("YourContext.tool.aliyun_oss.access_key_secret"),
+        )
+        self._cfg.region = region or ConfigManager.singleton().get("YourContext.tool.aliyun_oss.region")
+        self._cfg.endpoint = endpoint or ConfigManager.singleton().get("YourContext.tool.aliyun_oss.endpoint")
         # 使用配置好的信息创建OSS客户端
         self.client = oss.Client(self._cfg)
 
 
-    def upload_file(self, file_path, object_name=None) -> Optional[models.PutObjectResult]:
+    def upload_file(self, file_path, object_name=None) -> Optional[oss.models.PutObjectResult]:
         # 执行上传对象的请求，直接从文件上传
         # 指定存储空间名称、对象名称和本地文件路径
         result = self.client.put_object_from_file(
@@ -78,7 +71,7 @@ if __name__ == "__main__":
         region="cn-guangzhou",
         access_key_id=os.environ.get("ALI_OSS_AK_ID"),
         access_key_secret=os.environ.get("ALI_OSS_AK_SK"),
-        bucket_name="yorc",
+        bucket_name=os.environ.get("BUCKET_NAME"),
     )
 
 

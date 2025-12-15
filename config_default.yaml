@@ -2,8 +2,8 @@ YourContext:
   api:
     port: 8000
   model:
-  - qwen3-max
-  - qwen3-omni-flash
+    asr:
+      model: qwen3-asr-flash-filetrans
   storage:
     chromadb:
       enable: false
@@ -13,9 +13,17 @@ YourContext:
       max_file_size: 1000000000
       path: ./storage
   tool:
+    aliyun_oss:
+      endpoint: aliyun_oss_endpoint
+      region: aliyun_oss_region
+      access_key_id: aliyun_oss_access_key_id
+      access_key_secret: aliyun_oss_access_key_secret
+      bucket_name: aliyun_oss_bucket_name
     aliyun_bailian:
       base_url: aliyun_base_url
       api_key: aliyun_bailian_aksk
+    aliyun_asr:
+      base_url: aliyun_asr_base_url
     bilibili:
       sessdata: bilibili_sessdata
     tavily:

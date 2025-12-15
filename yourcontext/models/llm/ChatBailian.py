@@ -12,7 +12,7 @@ class ChatBailian(ChatOpenAI):
         Initialize the ChatBailian model with the given keyword arguments.
         """
         super().__init__(
-            base_url=ConfigManager.get("YourContext.tool.aliyun_bailian.base_url"), 
-            api_key=ConfigManager.get("YourContext.tool.aliyun_bailian.api_key"), 
+            base_url=ConfigManager.singleton().get("YourContext.tool.aliyun_bailian.base_url"), 
+            api_key=ConfigManager.singleton().get("YourContext.tool.aliyun_bailian.api_key"), 
             **kwargs
         )
