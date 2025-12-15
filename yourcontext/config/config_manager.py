@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional, Union, Callable, List
 from pathlib import Path
 import copy
 
+from yourcontext.consts import CommonConst
+
 
 class ConfigValidationError(Exception):
     """
@@ -16,6 +18,18 @@ class ConfigManager:
     """
     配置管理器负责读取和访问YAML配置文件。
     """
+
+    _instance: Optional["ConfigManager"] = None
+
+    @classmethod
+    def singleton(cls, config_path: Union[str, Path] = CommonConst.DEFAULT_CONFIG_PATH) -> "ConfigManager":
+        """
+        Return the singleton instance of ConfigManager.
+        If it doesn't exist, create it with the given config_path.
+        """
+        if cls._instance is None:
+            cls._instance = cls(config_path)
+        return cls._instance
 
     def __init__(self, config_path: Union[str, Path]=None):
         """
@@ -169,3 +183,32 @@ class ConfigManager:
         if value is ...:
             raise KeyError(f"Required configuration key '{key}' is missing")
         return value
+    
+    @classmethod    
+    def get(cls, key: str, default: Optional[Any] = None) -> Any:
+        return cls.singleton().get(key, default)
+
+    @classmethod        
+    def set(cls, key: str, value: Any) -> None:
+        return cls.singleton().set(key, value)
+
+    @classmethod        
+    def reload(cls) -> None:
+        return cls.singleton().reload()
+
+    @classmethod        
+    def get_all(cls) -> Dict[str, Any]:
+        return cls.singleton().get_all()
+
+    @classmethod        
+    def save(cls, output_path: Optional[Union[str, Path]] = None) -> None:
+        return cls.singleton().save(output_path)
+
+    @classmethod        
+    def get_typed(cls, key: str, expected_type: type, default: Optional[Any] = None) -> Any:
+        return cls.singleton().get_typed(key, expected_type, default)
+
+    @classmethod        
+    def require(cls, key: str) -> Any:
+        return cls.singleton().require(key)
+
