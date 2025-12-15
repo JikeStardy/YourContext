@@ -1,10 +1,11 @@
 import logging
-from typing import List, Union
+import threading
+from typing import List
 import requests
-import json
 import re
-import sys
 import os
+import hashlib
+from langchain_core.tools.base import BaseTool
 from langchain.tools import tool
 from urllib.parse import urlparse, parse_qs
 
@@ -15,6 +16,10 @@ from yourcontext.models.asr import ASRBailian, RespMode
 from yourcontext.models.tools.bilibili import BilibiliAudioStreamInfo, BilibiliStreamInfo, BilibiliVideoCodec, BilibiliVideoContent, BilibiliVideoInfo, BilibiliVideoStreamInfo
 
 class BilibiliVideo:
+
+    _instances = {}
+    _lock = threading.Lock()
+
     def __init__(self, sessdata=None):
         """
         初始化B站视频提取器
@@ -303,42 +308,19 @@ class BilibiliVideo:
             logging.error(f"获取视频流URL时出错: {str(e)}")
             raise Exception(f"获取视频流URL时出错: {str(e)}")
 
-    @tool("get_bilibili_video_content")
-    @staticmethod
-    def get_video_content(url: str=None, avid: int=None, bvid: str=None, need_timestamp: bool=False) -> BilibiliVideoContent:
-        """
-        retrieve video content from bilibili (an online video platform)
-        
-        Args:
-            url (str): the url from "bilibili.com"
-            avid (str): a string starts with "AV"
-            bvid (str): a string starts with "BV"
-            need_timestamp (bool): True for returning video content in srt format; False for plaintext without timestamp
-            
-        Returns:
-            BilibiliVideoContent: the video content
-            - content (str): the video content in srt format (if need_timestamp is True) or plaintext format (if need_timestamp is False)
-            - message (str): the message if any error occurred
-        """
-        return BilibiliVideo.get_video_content_pipeline(url=url, avid=avid, bvid=bvid, need_timestamp=need_timestamp)
-
-    @staticmethod
-    def get_video_content_pipeline(url: str, avid: int=None, bvid: str=None, quality: int=16, fnval: int=4048, need_timestamp: bool=False) -> BilibiliVideoContent:
-        # 实例化BilibiliVideo
-        bili_client = BilibiliVideo(sessdata=ConfigManager.singleton().get("YourContext.tool.bilibili.sessdata"))
-
+    def get_video_content_pipeline(self, url: str, avid: int=None, bvid: str=None, quality: int=16, fnval: int=4048, need_timestamp: bool=False) -> BilibiliVideoContent:
         # 从URL中提取参数
         if url:
             if not bvid:
-                bvid = bili_client.get_bvid_from_url(url)
+                bvid = self.get_bvid_from_url(url)
         
         # 获取视频信息
-        video_info = bili_client.get_video_info(avid=avid, bvid=bvid)
+        video_info = self.get_video_info(avid=avid, bvid=bvid)
         logging.info(f"视频标题: {video_info['title']}")
         logging.info(f"AV号: {video_info['avid']}, BV号: {video_info['bvid']}, CID: {video_info['cid']}")
         
         # 获取完整视频信息
-        video_info = bili_client.get_video_info_with_stream_info(
+        video_info = self.get_video_info_with_stream_info(
             avid=avid, 
             bvid=bvid, 
             quality=16
@@ -395,3 +377,43 @@ class BilibiliVideo:
             if os.path.exists(audio_file_path):
                 os.remove(audio_file_path)
 
+
+    @tool("get_bilibili_video_content")
+    def get_video_content(self, url: str=None, avid: int=None, bvid: str=None, need_timestamp: bool=False) -> BilibiliVideoContent:
+        """
+        retrieve video content from bilibili (an online video platform)
+        
+        Args:
+            url (str): the url from "bilibili.com"
+            avid (str): a string starts with "AV"
+            bvid (str): a string starts with "BV"
+            need_timestamp (bool): True for returning video content in srt format; False for plaintext without timestamp
+            
+        Returns:
+            BilibiliVideoContent: the video content
+            - content (str): the video content in srt format (if need_timestamp is True) or plaintext format (if need_timestamp is False)
+            - message (str): the message if any error occurred
+        """
+        return self.get_video_content_pipeline(url=url, avid=avid, bvid=bvid, need_timestamp=need_timestamp)
+
+    @property
+    def tools(self) -> List[BaseTool]:
+        return [
+            self.get_video_content
+        ]
+    
+    @property
+    def tool_name(self):
+        return "bilibili_video"
+
+    @classmethod
+    def create(cls, sessdata: str=None) -> "BilibiliVideo":
+        with cls._lock:
+            if not sessdata:
+                sessdata = ConfigManager.singleton().get("YourContext.tools.bilibili_video.sessdata")
+            if sessdata not in cls._instances:
+                key = hashlib.sha256(sessdata.encode('utf-8')).hexdigest()
+                self = cls(sessdata)
+                cls._instances[key] = self
+                logging.info(f"initiated mcp client for {self.tool_name}")
+        return cls._instances[key]
