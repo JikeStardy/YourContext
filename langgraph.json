@@ -4,8 +4,7 @@
         "."
     ],
     "graphs": {
-        "video_agent": "./yourcontext/agents/video_agent.py:get_video_agent",
-        "chat_agent": "./yourcontext/agents/chat_agent.py:get_chat_agent"
+        "jarvis": "./yourcontext/agents/master_agent.py:jarvis"
     },
     "env": "./.env"
 }

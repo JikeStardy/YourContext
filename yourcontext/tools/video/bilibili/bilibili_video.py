@@ -377,24 +377,26 @@ class BilibiliVideo:
             if os.path.exists(audio_file_path):
                 os.remove(audio_file_path)
 
-
-    @tool("get_bilibili_video_content")
-    def get_video_content(self, url: str=None, avid: int=None, bvid: str=None, need_timestamp: bool=False) -> BilibiliVideoContent:
-        """
-        retrieve video content from bilibili (an online video platform)
-        
-        Args:
-            url (str): the url from "bilibili.com"
-            avid (str): a string starts with "AV"
-            bvid (str): a string starts with "BV"
-            need_timestamp (bool): True for returning video content in srt format; False for plaintext without timestamp
+    @property
+    def get_video_content(self):
+        @tool("get_bilibili_video_content")
+        def _get_content(url: str=None, avid: int=None, bvid: str=None, need_timestamp: bool=False) -> BilibiliVideoContent:
+            """
+            retrieve video content from bilibili (an online video platform)
             
-        Returns:
-            BilibiliVideoContent: the video content
-            - content (str): the video content in srt format (if need_timestamp is True) or plaintext format (if need_timestamp is False)
-            - message (str): the message if any error occurred
-        """
-        return self.get_video_content_pipeline(url=url, avid=avid, bvid=bvid, need_timestamp=need_timestamp)
+            Args:
+                url (str): the url from "bilibili.com"
+                avid (str): a string starts with "AV"
+                bvid (str): a string starts with "BV"
+                need_timestamp (bool): True for returning video content in srt format; False for plaintext without timestamp
+                
+            Returns:
+                BilibiliVideoContent: the video content
+                - content (str): the video content in srt format (if need_timestamp is True) or plaintext format (if need_timestamp is False)
+                - message (str): the message if any error occurred
+            """
+            return self.get_video_content_pipeline(url=url, avid=avid, bvid=bvid, need_timestamp=need_timestamp)
+        return _get_content
 
     @property
     def tools(self) -> List[BaseTool]:
@@ -410,7 +412,7 @@ class BilibiliVideo:
     def create(cls, sessdata: str=None) -> "BilibiliVideo":
         with cls._lock:
             if not sessdata:
-                sessdata = ConfigManager.singleton().get("YourContext.tools.bilibili_video.sessdata")
+                sessdata = ConfigManager.singleton().get("YourContext.tool.bilibili.sessdata")
             if sessdata not in cls._instances:
                 key = hashlib.sha256(sessdata.encode('utf-8')).hexdigest()
                 self = cls(sessdata)

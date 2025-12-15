@@ -1,5 +1,3 @@
-import asyncio
-from contextlib import asynccontextmanager
 import logging
 import threading
 from typing import List
@@ -28,7 +26,7 @@ class TongyiSearch:
     def create(cls, tongyi_api_key: str=None) -> "TongyiSearch":
         with cls._lock:
             if not tongyi_api_key:
-                tongyi_api_key = ConfigManager.singleton().get("YourContext.tools.aliyun_bailian.api_key")
+                tongyi_api_key = ConfigManager.singleton().get("YourContext.tool.aliyun_bailian.api_key")
             if tongyi_api_key not in cls._instances:
                 self = cls(tongyi_api_key)
                 self._client = MultiServerMCPClient(  

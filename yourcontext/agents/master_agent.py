@@ -1,33 +1,29 @@
+import asyncio
 import logging
 from langchain.agents import create_agent
-from langchain.chat_models import init_chat_model
 from langchain.agents.middleware import TodoListMiddleware
 
+from yourcontext.agents.sub_agents.video_agent import call_video_agent
+from yourcontext.config.config_manager import ConfigManager
+from yourcontext.models.llm.chat_bailian import ChatBailian
 from yourcontext.prompts import CHATBOT_PROMPT
 from yourcontext.tools.search import TongyiSearch
 
 async def get_chat_agent():
-    qwen3_max = init_chat_model(
-        model="openai:qwen3-max"
-    )
     tools = []
 
-    logging.info("model initiated, now we going on create tools")
+    tools.append(call_video_agent)
 
-    tongyi = TongyiSearch.create("")
+    tongyi = TongyiSearch.create()
     tools.extend(await tongyi.tools)
 
-    logging.info("tongyi initiated, now we going on create chat agent")
-
     chat_agent = create_agent(
-        model=qwen3_max,
+        model=ChatBailian(model=ConfigManager.singleton().get("YourContext.model.chat.model")),
         tools=tools,
         system_prompt=CHATBOT_PROMPT,
         middleware=[TodoListMiddleware()],
     )
 
-    logging.info("agent created")
-
     return chat_agent
 
-
+jarvis = asyncio.run(get_chat_agent())
