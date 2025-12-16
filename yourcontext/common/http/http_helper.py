@@ -1,8 +1,10 @@
+from typing import Tuple
+import os
 import requests
 import tempfile
 
 
-def download_temp_file(url: str, file_path: str=None, session: requests.Session=None) -> str:
+def download_file(url: str, file_path, session: requests.Session=None, retry: int=3) -> Tuple[str, bool]:
     """
     下载文件到指定路径
     
@@ -11,10 +13,9 @@ def download_temp_file(url: str, file_path: str=None, session: requests.Session=
         file_path (str): 本地保存路径
         
     Returns:
-        Union[str, bytes]: 成功返回文件路径，失败返回错误信息
+        str: 成功返回文件路径，失败返回错误信息
+        bool: 是否成功
     """
-    if not file_path:
-        file_path = tempfile.NamedTemporaryFile(delete=False).name
     if not session:
         session = requests.Session()
     try:
@@ -26,6 +27,22 @@ def download_temp_file(url: str, file_path: str=None, session: requests.Session=
                 if chunk:
                     f.write(chunk)
                         
-        return file_path
+        return file_path, True
     except Exception as e:
-        raise Exception(f"下载文件失败: {str(e)}")
+        if retry > 0:
+            return download_file(url, file_path, session=session, retry=retry-1)
+        return str(e), False
+    
+def download_temp_file(url: str, session: requests.Session=None) -> Tuple[str, bool]:
+    """
+    下载文件到临时路径
+    
+    Args:
+        url (str): 文件URL
+        
+    Returns:
+        str: 临时文件路径
+        bool: 是否成功
+    """
+    file_path = tempfile.NamedTemporaryFile(delete=False).name
+    return download_file(url, file_path, session=session)

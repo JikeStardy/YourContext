@@ -1,3 +1,5 @@
+from enum import Enum
+import json
 import logging
 import threading
 from typing import List
@@ -9,11 +11,18 @@ from langchain_core.tools.base import BaseTool
 from langchain.tools import tool
 from urllib.parse import urlparse, parse_qs
 
-from yourcontext.common.http.http_helper import download_temp_file
+from yourcontext.common.fs.fs_helper import ensure_dir
+from yourcontext.common.http.http_helper import download_file, download_temp_file
 from yourcontext.common.oss.ali import AliyunOSS
 from yourcontext.config import ConfigManager
 from yourcontext.models.asr import ASRBailian, RespMode
 from yourcontext.models.tools.bilibili import BilibiliAudioStreamInfo, BilibiliStreamInfo, BilibiliVideoCodec, BilibiliVideoContent, BilibiliVideoInfo, BilibiliVideoStreamInfo
+
+class BilibiliVideoEnum(str, Enum):
+    AUDIO = "audio"
+    VIDEO = "video"
+    SUBTITLE = "subtitle"
+
 
 class BilibiliVideo:
 
@@ -29,6 +38,10 @@ class BilibiliVideo:
         """
         self.sessdata = sessdata
         self.session = requests.Session()
+
+        self.bucket_save_dir = ConfigManager.singleton().get("YourContext.tool.bilibili.bucket_save_dir")
+        self.local_save_dir = ConfigManager.singleton().get("YourContext.tool.bilibili.local_save_dir")
+        ensure_dir(dir_path=self.local_save_dir)
         
         # 设置请求头
         self.session.headers.update({
@@ -308,46 +321,79 @@ class BilibiliVideo:
             logging.error(f"获取视频流URL时出错: {str(e)}")
             raise Exception(f"获取视频流URL时出错: {str(e)}")
 
-    def get_video_content_pipeline(self, url: str, avid: int=None, bvid: str=None, quality: int=16, fnval: int=4048, need_timestamp: bool=False) -> BilibiliVideoContent:
+
+
+    def get_save_path(self, bvid: str, file_type: BilibiliVideoEnum) -> str:
+        suffix = ""
+        match file_type:
+            case BilibiliVideoEnum.AUDIO:
+                suffix = "mp3"
+            case BilibiliVideoEnum.VIDEO:
+                suffix = "m4s"
+            case BilibiliVideoEnum.SUBTITLE:
+                suffix = "json"
+        return os.path.join(self.local_save_dir, file_type.value, f"{bvid}.{suffix}")
+
+    def get_video_content_pipeline(self, url: str=None, avid: int=None, bvid: str=None, quality: int=16, fnval: int=4048, need_timestamp: bool=False) -> BilibiliVideoContent:
+        if not url and not (avid or bvid):
+            raise ValueError("必须提供URL、AV号或BV号")
+        
         # 从URL中提取参数
         if url:
             if not bvid:
                 bvid = self.get_bvid_from_url(url)
         
-        # 获取视频信息
-        video_info = self.get_video_info(avid=avid, bvid=bvid)
-        logging.info(f"视频标题: {video_info['title']}")
-        logging.info(f"AV号: {video_info['avid']}, BV号: {video_info['bvid']}, CID: {video_info['cid']}")
+        if os.path.exists(self.get_save_path(bvid, BilibiliVideoEnum.SUBTITLE)):
+            with open(self.get_save_path(bvid, BilibiliVideoEnum.SUBTITLE), "r") as f:
+                asr_result_json = json.load(f)
+                # 组装返回数据
+                logging.debug("组装返回数据 ...")
+                result = BilibiliVideoContent(
+                    content=ASRBailian.convert_transcript(asr_result_json, resp_mode=RespMode.SRT if need_timestamp else RespMode.TEXT_ONLY),
+                    message="成功获取视频内容"
+                )
+                return result
         
-        # 获取完整视频信息
-        video_info = self.get_video_info_with_stream_info(
-            avid=avid, 
-            bvid=bvid, 
-            quality=16
-        )
+        audio_file_path = self.get_save_path(bvid, BilibiliVideoEnum.AUDIO)
+        if not os.path.exists(audio_file_path):
+            # 获取视频信息
+            video_info = self.get_video_info(avid=avid, bvid=bvid)
+            logging.info(f"视频标题: {video_info['title']}")
+            logging.info(f"AV号: {video_info['avid']}, BV号: {video_info['bvid']}, CID: {video_info['cid']}")
+            
+            # 获取完整视频信息
+            video_info = self.get_video_info_with_stream_info(
+                avid=avid,
+                bvid=bvid, 
+                quality=quality,
+                fnval=fnval
+            )
 
-        match video_info.stream_info.stream_type:
-            case BilibiliVideoCodec.DASH:
-                audio_list = video_info.stream_info.audio_streams[0].urls
-            case BilibiliVideoCodec.MP4:
-                # audio = video_info.stream_info.audio_streams[-1].url
-                return BilibiliVideoContent(
-                    message="当前暂不支持MP4格式视频"
-                )
-            case _:
-                return BilibiliVideoContent(
-                    message="无法提取视频内容"
-                )
+            match video_info.stream_info.stream_type:
+                case BilibiliVideoCodec.DASH:
+                    audio_list = video_info.stream_info.audio_streams[-1].urls
+                case BilibiliVideoCodec.MP4:
+                    # audio = video_info.stream_info.audio_streams[-1].url
+                    return BilibiliVideoContent(
+                        message="当前暂不支持MP4格式视频"
+                    )
+                case _:
+                    return BilibiliVideoContent(
+                        message="无法提取视频内容"
+                    )
 
-        # 下载音频到tmp
-        for audio in audio_list:
-            audio_file_path = download_temp_file(audio)
-            if os.path.exists(audio_file_path):
-                break
-        logging.debug(f"下载音频到tmp: {audio_file_path}")
+            # 下载音频到tmp
+            for audio_url in audio_list:
+                if self.local_save_dir:
+                    audio_file_path, success = download_file(audio_url, ensure_dir(file_path=audio_file_path))
+                else:
+                    audio_file_path, success = download_temp_file(audio_url)
+                if success:
+                    break
+            logging.debug(f"下载音频到tmp: {audio_file_path}")
         
         try:
-            object_name = f"{bvid}.mp3"
+            object_name = f"{self.bucket_save_dir}/{BilibiliVideoEnum.AUDIO.value}/{bvid}.mp3"
             # 上传音频到oss
             logging.debug(f"上传音频到oss: {object_name}")
             ali_oss = AliyunOSS()
@@ -355,14 +401,15 @@ class BilibiliVideo:
             ali_oss.upload_file(audio_file_path, object_name)
             # 获取asr结果
             logging.debug("获取asr结果 ...")
-            asr_result = ASRBailian.get_asr_result(
-                file_url=ali_oss.get_presign_url(object_name),
-                resp_mode=RespMode.SRT if need_timestamp else RespMode.TEXT_ONLY
-            )
+            asr_result_json = ASRBailian.get_asr_result(file_url=ali_oss.get_presign_url(object_name))
+            # 保存字幕到本地
+            if self.local_save_dir:
+                with open(ensure_dir(self.get_save_path(bvid, BilibiliVideoEnum.SUBTITLE)), "w", encoding="utf-8") as f:
+                    json.dump(asr_result_json, f, ensure_ascii=False, indent=4)
             # 组装返回数据
             logging.debug("组装返回数据 ...")
             result = BilibiliVideoContent(
-                content=asr_result,
+                content=ASRBailian.convert_transcript(asr_result_json, resp_mode=RespMode.SRT if need_timestamp else RespMode.TEXT_ONLY),
                 message="成功获取视频内容"
             )
             return result
@@ -372,10 +419,11 @@ class BilibiliVideo:
                 message=f"获取视频内容时出错: {str(e)}"
             )
         finally:
-            # 删除音频文件
-            logging.debug(f"删除音频文件: {audio_file_path}")
-            if os.path.exists(audio_file_path):
-                os.remove(audio_file_path)
+            if not self.local_save_dir:
+                # 删除音频文件
+                logging.debug(f"删除音频文件: {audio_file_path}")
+                if os.path.exists(audio_file_path):
+                    os.remove(audio_file_path)
 
     @property
     def get_video_content(self):

@@ -55,20 +55,32 @@ class ASRBailian:
         return shortened_resp
 
     @classmethod
-    def get_asr_result(cls, file_url: str, resp_mode: RespMode, model: str=None, corpus: str="") -> Union[dict, str]:
+    def convert_transcript(cls, asr_result_json: dict, resp_mode: RespMode) -> Union[dict, str]:
+        transcript = asr_result_json["transcripts"][0]
+        sentences = transcript["sentences"]
+
+        logging.debug("construct asr content")
+        match resp_mode:
+            case RespMode.SHORT_JSON:
+                return cls.shorten_transcript(sentences)
+            case RespMode.SRT:
+                return cls.convert_to_srt_format(sentences)
+            case RespMode.TEXT_ONLY:
+                return transcript.text
+            case _, RespMode.FULL_JSON:
+                return sentences
+
+    @classmethod
+    def get_asr_result(cls, file_url: str, model: str=None, corpus: str="") -> dict:
         """
         获取语音识别结果
         
         Args:
             file_url (str): 语音文件URL
-            resp_mode (RespMode): 响应模式
             corpus (str, optional): 语音识别领域. Defaults to "".
         
         Returns:
-            Union[dict, str]: 响应内容，根据resp_mode不同而不同
-                - RespMode.FULL_JSON: 原始转录内容 (dict)
-                - RespMode.SHORT_JSON: 简化后的转录内容 (dict)
-                - RespMode.SRT: SRT格式文本 (纯文本, str)
+            dict: 响应内容
         """
         logging.debug("init dashscope")
         dashscope.api_key = ConfigManager.singleton().get("YourContext.tool.aliyun_bailian.api_key")
@@ -95,19 +107,9 @@ class ASRBailian:
         resp.raise_for_status()
 
         asr_result_json = resp.json()
-        transcript = asr_result_json["transcripts"][0]
-        sentences = transcript["sentences"]
 
-        logging.debug("construct asr content")
-        match resp_mode:
-            case RespMode.SHORT_JSON:
-                return cls.shorten_transcript(sentences)
-            case RespMode.SRT:
-                return cls.convert_to_srt_format(sentences)
-            case RespMode.TEXT_ONLY:
-                return transcript.text
-            case _, RespMode.FULL_JSON:
-                return sentences
+        return asr_result_json
+
 
 if __name__ == "__main__":
     # asr_bailian = ASRBailian()

@@ -2,16 +2,12 @@ YourContext:
   api:
     port: 8000
   model:
+    video_analyze:
+      model: qwen3-max
+    chat:
+      model: qwen3-max
     asr:
       model: qwen3-asr-flash-filetrans
-  storage:
-    chromadb:
-      enable: false
-    file:
-      enable: true
-      max_file_count: 1000
-      max_file_size: 1000000000
-      path: ./storage
   tool:
     aliyun_oss:
       endpoint: aliyun_oss_endpoint
@@ -26,6 +22,4 @@ YourContext:
       base_url: aliyun_asr_base_url
     bilibili:
       sessdata: bilibili_sessdata
-    tavily:
-      base_url: tavily_url
-      api_key: tavily_api_key
+      bucket_path: bilibili_bucket_path

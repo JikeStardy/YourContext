@@ -74,9 +74,6 @@ if __name__ == "__main__":
         bucket_name=os.environ.get("BUCKET_NAME"),
     )
 
-
-    # result = ali_oss.upload_file("./BV1ZgmYBrEWo.mp3")
-
     # # 输出请求的结果信息，包括状态码、请求ID、内容MD5、ETag、CRC64校验码、版本ID和服务器响应时间
     # print(f'status code: {result.status_code},'
     #     f' request id: {result.request_id},'
@@ -87,4 +84,4 @@ if __name__ == "__main__":
     #     f' server time: {result.headers.get("x-oss-server-time")},'
     # )
     
-    ali_oss.get_presign_url("BV1ZgmYBrEWo.mp3", expires=300)
+    print(ali_oss.get_presign_url("bilibili/audio/BV1ppmCBVEww.mp3", expires=30))
